@@ -10,6 +10,7 @@ interface Product {
   thumbnail: string;
 }
 
+
 export default function SearchBar() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Product[]>([]);
