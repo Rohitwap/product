@@ -1,11 +1,20 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "export",
   images: {
-    domains: ['cdn.dummyjson.com'],
-    unoptimized: true
+    domains: ['cdn.dummyjson.com', 'dummyjson.com'],
   },
-  basePath: process.env.NODE_ENV === "production" ? "/patna" : "",
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Credentials', value: 'true' },
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,OPTIONS' },
+        ],
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;
