@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 
@@ -25,13 +25,14 @@ export default function HomePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const fetchProducts = async (page: number) => {
+  const fetchProducts = useCallback(async (page: number) => {
     setLoading(true);
     try {
       const skip = (page - 1) * productsPerPage;
       const response = await fetch(
         `https://dummyjson.com/products?limit=${productsPerPage}&skip=${skip}`
       );
+      if (!response.ok) throw new Error('Failed to fetch products');
       const data = await response.json();
       setProducts(data.products);
       setTotalPages(Math.ceil(data.total / productsPerPage));
@@ -40,34 +41,35 @@ export default function HomePage() {
       const params = new URLSearchParams(searchParams.toString());
       params.set('page', page.toString());
       router.replace(`?${params.toString()}`, { scroll: false });
-    } catch (error) {
-      console.error('Error fetching products:', error);
+    } catch (error: unknown) {
+      console.error('Error fetching products:', error instanceof Error ? error.message : error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [productsPerPage, router, searchParams]);
 
   useEffect(() => {
-    const page = parseInt(searchParams.get('page') || '1');
+    const page = parseInt(searchParams.get('page') || '1', 10);
     setCurrentPage(page);
     fetchProducts(page);
-  }, [searchParams]);
+  }, [searchParams, fetchProducts]);
 
-  const handleNext = () => {
-    if (currentPage < totalPages) {
-      const nextPage = currentPage + 1;
-      setCurrentPage(nextPage);
-      fetchProducts(nextPage);
+  const paginationHandlers = useMemo(() => ({
+    handleNext: () => {
+      if (currentPage < totalPages) {
+        const nextPage = currentPage + 1;
+        setCurrentPage(nextPage);
+        fetchProducts(nextPage);
+      }
+    },
+    handlePrevious: () => {
+      if (currentPage > 1) {
+        const prevPage = currentPage - 1;
+        setCurrentPage(prevPage);
+        fetchProducts(prevPage);
+      }
     }
-  };
-
-  const handlePrevious = () => {
-    if (currentPage > 1) {
-      const prevPage = currentPage - 1;
-      setCurrentPage(prevPage);
-      fetchProducts(prevPage);
-    }
-  };
+  }), [currentPage, totalPages, fetchProducts]);
 
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8">
@@ -78,52 +80,54 @@ export default function HomePage() {
 
         {loading ? (
           <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500" aria-label="Loading" />
           </div>
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {products.map((product, index) => (
-                <div 
+                <article 
                   key={product.id} 
                   className="bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden"
+                  aria-labelledby={`product-${product.id}-title`}
                 >
                   <div className="relative h-48 w-full">
                     <Image
                       src={product.thumbnail}
-                      alt={product.title}
+                      alt={`Thumbnail for ${product.title}`}
                       fill
                       className="object-cover"
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                      priority={index < 4} // Prioritize first 4 images (above the fold)
-                      unoptimized={process.env.NODE_ENV !== 'production'} // Bypass optimization in dev
+                      priority={index < 4}
+                      unoptimized={process.env.NODE_ENV !== 'production'}
                     />
                   </div>
                   <div className="p-4">
-                    <h2 className="text-lg font-semibold text-gray-900 truncate mb-1">
+                    <h2 id={`product-${product.id}-title`} className="text-lg font-semibold text-gray-900 truncate mb-1">
                       {product.title}
                     </h2>
                     <p className="text-gray-600 mb-2">${product.price.toFixed(2)}</p>
                     <div className="flex items-center">
-                      <span className="text-yellow-500">★ {product.rating}</span>
+                      <span className="text-yellow-500">★ {product.rating.toFixed(1)}</span>
                       <span className="text-gray-400 ml-2 text-sm">
                         ({product.stock} in stock)
                       </span>
                     </div>
                   </div>
-                </div>
+                </article>
               ))}
             </div>
 
-            <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-10">
+            <nav aria-label="Product pagination" className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-10">
               <button
-                onClick={handlePrevious}
+                onClick={paginationHandlers.handlePrevious}
                 disabled={currentPage <= 1}
                 className={`px-4 py-2 rounded-md font-medium transition-colors ${
                   currentPage > 1
                     ? 'bg-blue-600 text-white hover:bg-blue-700'
                     : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                 }`}
+                aria-disabled={currentPage <= 1}
               >
                 Previous
               </button>
@@ -133,17 +137,18 @@ export default function HomePage() {
               </span>
               
               <button
-                onClick={handleNext}
+                onClick={paginationHandlers.handleNext}
                 disabled={currentPage >= totalPages}
                 className={`px-4 py-2 rounded-md font-medium transition-colors ${
                   currentPage < totalPages
                     ? 'bg-blue-600 text-white hover:bg-blue-700'
                     : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                 }`}
+                aria-disabled={currentPage >= totalPages}
               >
                 Next
               </button>
-            </div>
+            </nav>
           </>
         )}
       </div>
