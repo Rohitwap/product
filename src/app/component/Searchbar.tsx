@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, ChangeEvent } from 'react';
+import { useState, useEffect, useCallback, ChangeEvent, useMemo } from 'react';
 import Image from 'next/image';
 
 interface Product {
@@ -17,16 +17,16 @@ export default function SearchBar() {
   const [error, setError] = useState<string | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // Debounce function
-  const debounce = (func: Function, delay: number) => {
+  // Properly typed debounce function
+  const debounce = <T extends unknown[]>(func: (...args: T) => void, delay: number) => {
     let timeoutId: NodeJS.Timeout;
-    return (...args: any[]) => {
+    return (...args: T) => {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => func(...args), delay);
     };
   };
 
-  // API call function
+  // API call function with proper typing
   const fetchSearchResults = useCallback(async (searchTerm: string) => {
     if (!searchTerm.trim()) {
       setResults([]);
@@ -56,13 +56,12 @@ export default function SearchBar() {
     }
   }, []);
 
-  // Debounced version of the API call
-  const debouncedFetch = useCallback(
-    debounce((searchTerm: string) => {
+  // Memoized debounced fetch function
+  const debouncedFetch = useMemo(() => {
+    return debounce((searchTerm: string) => {
       fetchSearchResults(searchTerm);
-    }, 1000),
-    [fetchSearchResults]
-  );
+    }, 1000);
+  }, [fetchSearchResults]);
 
   // Handle input change
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -95,6 +94,7 @@ export default function SearchBar() {
           aria-label="Search products"
           aria-expanded={isDropdownOpen}
           aria-haspopup="listbox"
+          role="combobox"
         />
         {isLoading && (
           <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -113,6 +113,7 @@ export default function SearchBar() {
               {results.map((product) => (
                 <li 
                   key={product.id}
+                  role="option"
                   className="p-3 hover:bg-gray-50 cursor-pointer transition-colors"
                   onClick={() => {
                     setQuery(product.title);
@@ -143,3 +144,5 @@ export default function SearchBar() {
     </div>
   );
 }
+
+export { SearchBar };
