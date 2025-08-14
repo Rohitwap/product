@@ -51,7 +51,7 @@ export default function HomePage() {
     const page = parseInt(searchParams.get('page') || '1');
     setCurrentPage(page);
     fetchProducts(page);
-  }, []);
+  }, [searchParams]);
 
   const handleNext = () => {
     if (currentPage < totalPages) {
@@ -83,7 +83,7 @@ export default function HomePage() {
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {products.map((product) => (
+              {products.map((product, index) => (
                 <div 
                   key={product.id} 
                   className="bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden"
@@ -95,6 +95,8 @@ export default function HomePage() {
                       fill
                       className="object-cover"
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      priority={index < 4} // Prioritize first 4 images (above the fold)
+                      unoptimized={process.env.NODE_ENV !== 'production'} // Bypass optimization in dev
                     />
                   </div>
                   <div className="p-4">
